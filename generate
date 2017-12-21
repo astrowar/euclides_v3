@@ -1,0 +1,86 @@
+import pickle
+import re
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import LSTM
+from keras.callbacks import ModelCheckpoint
+from keras.utils import np_utils
+
+import unidecode
+
+
+def split_words(txt):
+    w12 = re.sub('[\[\]\.,:;!\?\(\)=\-\+\"\'—ªº”“\*\d\n\r\t]', ' ', txt)
+    # w12 = list(filter(None, w12))
+    return w12
+
+
+def vector_of(w):
+    if w[0] == ' ': w = w[1:]
+    if w in wdic:
+        return wdic[w]
+    return None
+
+
+def vector_of_seq(seq):
+    vs = []
+    for s in seq:
+        v = vector_of(s)
+        if v == None :
+            return None
+        vs.append(v)
+    return vs
+
+def get_word(x):
+    dmin = float("inf")
+    w = "nada"
+    for index, item, vector in all_wdata:
+
+        dist = np.linalg.norm(np.array(x) - np.array(vector))
+        if dist < dmin :
+           dmin = dist
+           w =  item
+    return w
+
+
+all_wdata = pickle.load(open("wordvector.p", "rb"))
+wdic = {item: index for index, item, vector in all_wdata}
+#wvector = {index: vector for index, item, vector in all_wdata}
+
+
+vector_lenght = len(all_wdata[0][2])
+
+seq_length = 8
+dataX = []
+dataY = []
+
+
+
+seq_length = 8
+seq_in = "aquele que sabia demais sempre morria antes de".split(" ")
+v_in = vector_of_seq(seq_in)
+seed = [np.array((all_wdata[j][2])) for j in v_in]
+
+
+
+# define the LSTM model
+model = Sequential()
+model.add(LSTM(256, input_shape=(seq_length, vector_lenght)))
+model.add(Dropout(0.1))
+model.add(Dense(vector_lenght, activation='relu'))
+model.add(Dense(vector_lenght, activation='relu'))
+model.compile(loss='mean_absolute_error', optimizer='adam')
+
+model.load_weights("weights-improvement-49.hdf5")
+
+for i in range(9):
+  print([get_word(x) for x in seed])
+  x = np.reshape(seed[-seq_length:], (1, seq_length  , vector_lenght))
+  prediction = model.predict(x, verbose=0)[0]
+  #print(prediction)
+  result = get_word(prediction)
+  print(result)
+  seed.append(prediction)
+
