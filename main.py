@@ -1,6 +1,6 @@
 import pickle
 import re
-import numpy
+import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
@@ -46,6 +46,10 @@ word_list = list(filter(None, word_list))
 
 all_wdata = pickle.load(open("wordvector.p", "rb"))
 wdic = {item: index for index, item, vector in all_wdata}
+#wvector = {index: vector for index, item, vector in all_wdata}
+
+
+vector_lenght = len(all_wdata[0][2])
 
 seq_length = 8
 dataX = []
@@ -63,23 +67,38 @@ for i in range(0, n_words - seq_length, 1):
     if (v_in ==None ):
         continue
 
-    print(seq_in , seq_out)
-    print(v_in, v_out)
-    #dataX.append([char_to_int[char] for char in seq_in])
-    #dataY.append(char_to_int[seq_out])
+    #print(seq_in , seq_out)
+    #print(v_in, v_out)
+    dataX.append(np.array([ np.array( (all_wdata[j][2])) for j in v_in]))
+    dataY.append(np.array(all_wdata[v_out][2]))
+
+    if (len(dataY)> 900000):
+        break
+    #if i%100  == 0 :
+    #    print(len(dataY[-1]))
+        #print(dataX[-1], dataY[-1])
+        #print(dataX[-1]+dataX[-1])
+
 n_patterns = len(dataX)
+
 print("Total Patterns: ", n_patterns)
 
-exit(0)
-for w in word_list:
-    if w[0] == ' ': w = w[1:]
-    if w in wdic:
-        continue
-    print("unknoun word '", w, "'")
+X = np.reshape(dataX, (n_patterns, seq_length, vector_lenght))
+Y = np.reshape(dataY, (n_patterns, vector_lenght))
+
 
 # define the LSTM model
 model = Sequential()
-model.add(LSTM(256, input_shape=(10, 50)))
-model.add(Dropout(0.2))
-model.add(Dense(20, activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adam')
+model.add(LSTM(256, input_shape=(seq_length, vector_lenght)))
+model.add(Dropout(0.1))
+model.add(Dense(Y.shape[1], activation='relu'))
+model.add(Dense(Y.shape[1], activation='relu'))
+model.compile(loss='mean_absolute_error', optimizer='adam')
+
+
+# define the checkpoint
+filepath="weights-improvement-{epoch:02d}.hdf5"
+checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
+callbacks_list = [checkpoint]
+
+model.fit(X, Y, epochs=100, batch_size=256, callbacks=callbacks_list)
