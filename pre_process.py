@@ -1,3 +1,4 @@
+# https://github.com/Kyubyong/wordvectors
 import re
 import pickle
 
